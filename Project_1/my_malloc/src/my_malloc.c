@@ -35,15 +35,15 @@ void removeFromFreeList(LinkedList * list, block_meta * toRemove) {
         fprintf(stderr, "Can't remove from an empty list\n"); 
         return; 
     }
-    if(list->head = toRemove && list->tail == toRemove) { //if toRemove is the only item in list
+    if(list->head == toRemove && list->tail == toRemove) { //if toRemove is the only item in list
         list->head = NULL;
         list -> tail = NULL;
     }
-    else if (list->head = toRemove) {//else if toRemove is the first element in the list
+    else if (list->head == toRemove) {//else if toRemove is the first element in the list
         list->head = list->head->next;
         list->head->prev = NULL;
     }
-    else if (list->tail = toRemove) { //
+    else if (list->tail == toRemove) { //
         list->tail = list->tail->prev;
         list->tail->next = NULL;
     }
@@ -58,7 +58,7 @@ void removeFromFreeList(LinkedList * list, block_meta * toRemove) {
 
 void insertInFrontOf(LinkedList * list, block_meta * toInsert, block_meta * curr) {
     if ((!list->head && !list->tail) || (curr && list->tail == curr)) {
-        AddToFreeList(list, toInsert);
+        appendToFreeList(list, toInsert);
     }
     else if (curr == NULL) {
         list->head->prev = toInsert;
@@ -99,7 +99,7 @@ void * allocate (size_t dataSize) {
     return allocatedBlock + 1; //Return the pointer to the start of the actual data not the metadata. This pointer arithmetic is essentially equal to (void *)allocatedBlock + META_SIZE
 }
 
-void * deallocate (block_meta * toDeallocate) {
+void deallocate (block_meta * toDeallocate) {
     //if free list is empty, then append to free list
     if (isEmpty(&free_list) || (toDeallocate > free_list.tail)) {
         bool coalesce = (!isEmpty(&free_list) && toDeallocate > free_list.tail)? true : false;
@@ -198,7 +198,7 @@ void * ff_malloc (size_t size) {
     }
     return allocate(size);
 }
-void * ff_free (void * toFree){
+void ff_free (void * toFree){
     if (toFree == NULL) {
         return;
     }
@@ -212,8 +212,9 @@ void * bf_malloc (size_t size) {
     }
     return allocate(size);
 }
-void * bf_free (block_meta * toFree);
-
+void  bf_free (block_meta * toFree){
+  ff_free(toFree);
+}
 
 unsigned long get_data_segment_size() {
     return heap_info.totalAllocated;
@@ -221,4 +222,3 @@ unsigned long get_data_segment_size() {
 unsigned long get_data_segment_free_space_size() {
     return heap_info.totalFreed;
 }
-
