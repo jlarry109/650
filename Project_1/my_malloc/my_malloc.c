@@ -13,20 +13,6 @@ void initializeMemoryBlock(MemoryBlock * block, size_t dataSize, bool allocated)
   block->prev = NULL;
   block->next = NULL;
 }
-void displayMemoryBlock(MemoryBlock* block) {
-  printf("Block: %p, Size: %lu, Prev: %p, Next: %p, Occupied: %d\n",
-         block, block->dataSize, block->prev, block->next, block->allocated);
-}
-
-// FreeList methods
-void displayFreeList(FreeList* list) {
-  printf("Free List:\n");
-  MemoryBlock* current = list->head;
-  while (current != NULL) {
-    displayMemoryBlock(current);
-    current = current->next;
-  }
-}
 
 void appendToFreeList(FreeList * list, MemoryBlock * toAdd) {
     //if list is empty, head and tail should both point to toAdd
@@ -140,27 +126,28 @@ void coalesceWithRight(MemoryBlock* block) {
 }
 
 void freeMemoryBlock(MemoryBlock* block) {
-  heap_info.totalFreed += block->dataSize + META_SIZE;
 
   block->allocated = false;
-
-  if (isEmptyFreeList(&freeList)) {
+  heap_info.totalFreed += block->dataSize + META_SIZE;
+  if (isEmptyFreeList(&freeList) || block > freeList.tail) {
     appendToFreeList(&freeList, block);
+    bool coalesce = (!isEmptyFreeList(&freeList) && block > freeList.tail)? true : false;
+    if (coalesce) {
+      coalesceWithLeft(block);
+    }
   } else if (block < freeList.head) {
     insertIntoFreeList(&freeList, block, NULL);
     coalesceWithRight(block);
-  } else if (block > freeList.tail) {
-    appendToFreeList(&freeList, block);
-    coalesceWithLeft(block);
-  } else {
-    MemoryBlock* iter = freeList.head;
-    while (iter < block) {
-      iter = iter->next;
-    }
-    MemoryBlock* curr = iter->prev;
-    insertIntoFreeList(&freeList, block, curr);
-    coalesceWithRight(block);
-    coalesceWithLeft(block);
+  }
+   else {
+      MemoryBlock* iter = freeList.head;
+      while (iter < block) {
+        iter = iter->next;
+      }
+      MemoryBlock* curr = iter->prev;
+      insertIntoFreeList(&freeList, block, curr);
+      coalesceWithRight(block);
+      coalesceWithLeft(block);
   }
 }
 
@@ -185,7 +172,15 @@ void ff_free (void* ptr) {
     freeMemoryBlock(block);
   }
 }
-
+MemoryBlock * findFirstFit(MemoryBlock * curr, size_t size) {
+    while (curr != NULL) {
+        if (curr->dataSize >= size) {
+            return curr;
+        }
+        curr = curr->next;
+    }
+    return curr;
+}
 void* bf_malloc(size_t size) {
     if (size == 0) { return NULL; }
   MemoryBlock* current = freeList.head;
