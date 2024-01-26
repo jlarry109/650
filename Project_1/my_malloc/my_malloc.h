@@ -53,9 +53,9 @@ bool isEmptyFreeList (FreeList * freeList);
  * @param allocated: Allocation status of the block.
  */
 void initializeMemoryBlock(MemoryBlock* block, size_t dataSize, bool occupied);
-//void displayMemoryBlock(MemoryBlock* block);
+void displayMemoryBlock(MemoryBlock* block);
 
-//void displayFreeList(FreeList* list);
+void displayFreeList(FreeList* list);
 
 /*
  * @brief Appends a block to the free list.

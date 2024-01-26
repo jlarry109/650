@@ -13,6 +13,20 @@ void initializeMemoryBlock(MemoryBlock * block, size_t dataSize, bool allocated)
   block->prev = NULL;
   block->next = NULL;
 }
+void displayMemoryBlock(MemoryBlock* block) {
+  printf("Block: %p, Size: %lu, Prev: %p, Next: %p, Occupied: %d\n",
+         block, block->dataSize, block->prev, block->next, block->allocated);
+}
+
+// FreeList methods
+void displayFreeList(FreeList* list) {
+  printf("Free List:\n");
+  MemoryBlock* current = list->head;
+  while (current != NULL) {
+    displayMemoryBlock(current);
+    current = current->next;
+  }
+}
 
 void appendToFreeList(FreeList * list, MemoryBlock * toAdd) {
     //if list is empty, head and tail should both point to toAdd
@@ -166,9 +180,9 @@ void ff_free (void* ptr) {
   if (ptr == NULL) {
     return;
   }
-  MemoryBlock* blockFreed = (MemoryBlock*)((char*)ptr - META_SIZE);
-  if (blockFreed->allocated == true) {
-    freeMemoryBlock(blockFreed);
+  MemoryBlock* block = (MemoryBlock*)((char*)ptr - META_SIZE);
+  if (block->allocated == true) {
+    freeMemoryBlock(block);
   }
 }
 
