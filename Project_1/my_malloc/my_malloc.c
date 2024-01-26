@@ -24,10 +24,13 @@ void appendToFreeList(LinkedList * list, block_meta * toAppend){
         list->tail = &(*toAppend);
     }
     //Otherwise (if toAdd isn't first element in the list)
-    list->tail->next = &(*toAppend);
-    toAppend->next = NULL;
-    toAppend->prev = list->tail;
-    list->tail = &(*toAppend);
+    else {
+        list->tail->next = &(*toAppend);
+        toAppend->prev = list->tail;
+        toAppend->next = NULL;
+        list->tail = &(*toAppend);
+    }
+    toAppend->allocated = false;
 }
 
 void removeFromFreeList(LinkedList * list, block_meta * toRemove) {
@@ -37,7 +40,7 @@ void removeFromFreeList(LinkedList * list, block_meta * toRemove) {
     }
     if(list->head == toRemove && list->tail == toRemove) { //if toRemove is the only item in list
         list->head = NULL;
-        list -> tail = NULL;
+        list->tail = NULL;
     }
     else if (list->head == toRemove) {//else if toRemove is the first element in the list
         list->head = list->head->next;
@@ -57,14 +60,22 @@ void removeFromFreeList(LinkedList * list, block_meta * toRemove) {
 }
 
 void insertInFrontOf(LinkedList * list, block_meta * toInsert, block_meta * curr) {
-    if ((!list->head && !list->tail) || (curr && list->tail == curr)) {
-        appendToFreeList(list, toInsert);
+    if ((isEmpty(list)) /*|| (curr && list->tail == curr)*/) {
+        //appendToFreeList(list, toInsert);
+        list->head = toInsert;
+        list->tail = toInsert;
     }
     else if (curr == NULL) {
         list->head->prev = toInsert;
         toInsert = list->head;
         toInsert->prev = NULL;
         list->head = toInsert;
+    }
+    else if (curr == list->tail) {
+        list->tail->next = toInsert;
+        toInsert->prev = list->tail;
+        toInsert->next = NULL;
+        list->tail = toInsert;
     }
     else {
         block_meta * temp = curr->next;
@@ -89,7 +100,7 @@ void * allocate (size_t dataSize) {
     //A blockSize comprises of the size of its data and the size of its metadata
     size_t blockSize = dataSize + META_SIZE;
     block_meta * allocatedBlock = sbrk(blockSize);
-    if (allocatedBlock == (void *) -1 || errno == ENOMEM) {
+    if ((void *) allocatedBlock == (void *) -1 || errno == ENOMEM) {
         fprintf(stderr, "sbrk failed to allocate memory\n");
         return NULL;
     }
@@ -97,21 +108,27 @@ void * allocate (size_t dataSize) {
     initBlockMeta(allocatedBlock, dataSize, true);
     heap_info.totalAllocated += blockSize;
     return allocatedBlock + 1; //Return the pointer to the start of the actual data not the metadata. This pointer arithmetic is essentially equal to (void *)allocatedBlock + META_SIZE
+    //return (char *)allocatedBlock + META_SIZE;
 }
 
 void deallocate (block_meta * toDeallocate) {
     //if free list is empty, then append to free list
-    if (isEmpty(&free_list) || (toDeallocate > free_list.tail)) {
-        bool coalesce = (!isEmpty(&free_list) && toDeallocate > free_list.tail)? true : false;
+    //printf("deallocating\n");
+    if (isEmpty(&free_list) /*|| (toDeallocate > free_list.tail)*/) {
+        //bool coalesce = (!isEmpty(&free_list) && toDeallocate > free_list.tail)? true : false;
         appendToFreeList(&free_list, toDeallocate);
-        if (coalesce) {
+        /*if (coalesce) {
             coalesceWithLeft(toDeallocate);
-        }
-    }
-    else if (toDeallocate < free_list.head) {
+        }*/
+    }   
+    else if ((char *)toDeallocate < (char *) free_list.head) {
         insertInFrontOf(&free_list, toDeallocate, NULL);
         coalesceWithRight(toDeallocate);
     }
+    else if((char *) toDeallocate > (char *)free_list.tail){
+        appendToFreeList(&free_list, toDeallocate);
+        coalesceWithLeft(toDeallocate);
+  }
     else {
         block_meta * iter = free_list.head;
         while (iter < toDeallocate) {
@@ -124,12 +141,12 @@ void deallocate (block_meta * toDeallocate) {
         coalesceWithLeft(toDeallocate);
     }
     toDeallocate->allocated = false;
-    heap_info.totalFreed -= toDeallocate->dataSize + META_SIZE;
+    heap_info.totalFreed += toDeallocate->dataSize + META_SIZE;
 }
 
 block_meta * findFirstFit(block_meta * curr, size_t size) {
     while (curr != NULL) {
-        if (curr->dataSize >= size) {
+        if (!curr->allocated && curr->dataSize >= size) {
             return curr;
         }
         curr = curr->next;
@@ -140,7 +157,7 @@ block_meta * findFirstFit(block_meta * curr, size_t size) {
 block_meta * findBestFit(block_meta * curr, size_t size){
     block_meta * bestFit = NULL;
     while (curr != NULL) {
-        if (curr->dataSize == size) {
+        if (!curr->allocated && curr->dataSize == size) {
             bestFit = curr;
             break;
         }
@@ -157,22 +174,22 @@ block_meta * findBestFit(block_meta * curr, size_t size){
 }
 
 void * splitBlock(block_meta * block, size_t size) {
-    if (size == block->dataSize) {//then no need to split just return the block
+    if (size + META_SIZE > block->dataSize) {//then no need to split just return the block
         removeFromFreeList(&free_list, block);
-        heap_info.totalFreed -= block->dataSize + META_SIZE;
+        heap_info.totalFreed -= (block->dataSize + META_SIZE);
     }
     else {
         //remainFree starts at (size + META_SIZE) away from the start of the current block
         block_meta * remainFree = (block_meta *)((char *)(block) + size + META_SIZE); 
-        size_t remainFreeSize = block->dataSize - size;//size of remainFree block 
+        size_t remainFreeSize = block->dataSize
+         - size - META_SIZE;//size of remainFree block 
         initBlockMeta(remainFree, remainFreeSize, false);//initialize remainFree block
+        block->dataSize = size;
+        block->allocated = true;
         insertInFrontOf(&free_list, remainFree, block); //add remainFree to list of free blocks
         removeFromFreeList(&free_list, block); //remove allocated block from list of free blocks
         heap_info.totalFreed -= size + META_SIZE;
-
-        block->dataSize = size;
-        block->allocated = true;
-
+        
     }
     return block;
 }
@@ -191,27 +208,71 @@ void coalesceWithRight(block_meta * leftBlock){
 }
 
 void * ff_malloc (size_t size) {
-    block_meta * curr = free_list.head;
+    if (size == 0) { return NULL; }
+    /*block_meta * curr = free_list.head;
     curr = findFirstFit(curr, size);
     if (curr != NULL) {
-        return splitBlock(curr, size) + 1;
+       //return splitBlock(curr, size) + 1;
+       return (char *)splitBlock(curr, size) + META_SIZE;
+    }
+    else {
+        return allocate(size);
+    }*/
+     block_meta * curr = free_list.head;
+    while(curr != NULL){
+        if(curr->allocated == false && curr->dataSize >= size){
+        return (char*)splitBlock(curr, size) + META_SIZE;
+        }
+        curr = curr->next;
     }
     return allocate(size);
+    
 }
 void ff_free (void * toFree){
     if (toFree == NULL) {
         return;
     }
+    block_meta * block = (block_meta*) toFree -1;
+    if(block->allocated == true){
+        deallocate(block);
+  }
 }
-
+   
 void * bf_malloc (size_t size) {
+    if (size == 0) { return NULL; }
+    /*
     block_meta * curr = free_list.head;
     block_meta * bestFit = findBestFit(curr, size);
     if (bestFit != NULL) {
         return splitBlock(curr, size) + 1;
     }
-    return allocate(size);
+    return allocate(size);*/
+    block_meta * curr = free_list.head;
+    block_meta * bestFit = NULL;
+    size_t minSize = SIZE_MAX;
+
+    while(curr != NULL){
+        if(curr->allocated == false && curr->dataSize >= size){
+            if(curr->dataSize == size){
+                return splitBlock(curr, size) + 1;
+                //return (char*)splitBlock(curr, size) + META_SIZE;
+            }
+            if(curr->dataSize < minSize){
+                bestFit = curr;
+                minSize = curr->dataSize;
+            }
+        }
+        curr = curr->next;
+    }
+    if(bestFit == NULL){
+        return allocate(size);
+    }
+    else{
+        return splitBlock(bestFit, size) + 1;
+        //return (char*)splitBlock(bestFit, size) + META_SIZE;
+    }
 }
+
 void  bf_free (block_meta * toFree){
   ff_free(toFree);
 }

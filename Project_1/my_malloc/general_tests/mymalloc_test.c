@@ -11,7 +11,7 @@
 #define FREE(p)    bf_free(p)
 #endif
 
-
+ 
 int main(int argc, char *argv[])
 {
   const unsigned NUM_ITEMS = 10;
@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
   FREE(array[5]);
   FREE(array[1]);
   FREE(array[3]);
-
+ 
   size = 23;
   expected_sum += size * size;
   array[6] = (int *)MALLOC(size * sizeof(int));
