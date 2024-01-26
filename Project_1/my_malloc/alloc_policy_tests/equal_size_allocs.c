@@ -16,7 +16,7 @@
 #define FREE(p)    bf_free(p)
 #endif 
     
-      
+       
 double calc_time(struct timespec start, struct timespec end) {
   double start_sec = (double)start.tv_sec*1000000000.0 + (double)start.tv_nsec;
   double end_sec = (double)end.tv_sec*1000000000.0 + (double)end.tv_nsec;
@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
     spacing_array[i] = (int *)MALLOC(ALLOC_SIZE);
   } //for i 
   
-  for (i=0; i < NUM_ITEMS; i++) {
+  for (i=0; i < NUM_ITEMS; i++) {   
     FREE(array[i]);
   } //for i       
    

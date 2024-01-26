@@ -6,7 +6,7 @@ heap_info_t heap_info = { .totalAllocated = 0, .totalFreed = 0 };
 bool isEmptyFreeList (FreeList * freeList) {
     return !freeList->head && !freeList->tail;
 }
-// Memory block methods
+
 void initializeMemoryBlock(MemoryBlock * block, size_t dataSize, bool allocated) {
   block->dataSize = dataSize;
   block->allocated = allocated;
@@ -37,7 +37,7 @@ void insertIntoFreeList(FreeList* list, MemoryBlock* block, MemoryBlock* curr) {
     list->head->prev = &(*block);
     block->next = list->head;
     block->prev = NULL;
-    list->head = block;
+    list->head = &(*block);
   } else if (curr == list->tail) {
     list->tail->next = &(*block);
     block->prev = list->tail;
@@ -46,7 +46,7 @@ void insertIntoFreeList(FreeList* list, MemoryBlock* block, MemoryBlock* curr) {
   } else {
     MemoryBlock * toInsert = curr->next;
     curr->next = &(*block);
-    block->prev = curr;
+    block->prev = &(*curr);
     block->next = &(*toInsert);
     toInsert->prev = &(*block);
   }
@@ -88,7 +88,7 @@ void* allocateMemory(size_t dataSize) {
 
   initializeMemoryBlock(allocated, dataSize, true);
   heap_info.totalAllocated += totalSize;
-  return allocated + 1;  //Return the pointer to the start of the actual data not the metadata. This pointer arithmetic is essentially equal to (void *)allocatedBlock + META_SIZE
+  return allocated + 1;  //Return the pointer to the start of the actual data not the metadata. This pointer arithmetic is essentially equal to (char *)allocatedBlock + META_SIZE
 }
 
 MemoryBlock* splitMemoryBlock(MemoryBlock* block, size_t dataSize) {
@@ -96,7 +96,7 @@ MemoryBlock* splitMemoryBlock(MemoryBlock* block, size_t dataSize) {
     heap_info.totalFreed -= (META_SIZE + block->dataSize);
     removeFromFreeList(&freeList, block);
   } else {
-    MemoryBlock* remainingBlock = (MemoryBlock*)((char*)block + META_SIZE + dataSize);
+    MemoryBlock* remainingBlock = (MemoryBlock*)((char*)(block + 1) + dataSize);
     size_t remainingSize = block->dataSize - dataSize - META_SIZE;
     initializeMemoryBlock(remainingBlock, remainingSize, false);
     block->dataSize = dataSize;
@@ -111,22 +111,21 @@ MemoryBlock* splitMemoryBlock(MemoryBlock* block, size_t dataSize) {
 
 void coalesceWithLeft(MemoryBlock* block) {
   if (block->prev && (char*)block == (char*)block->prev + META_SIZE + block->prev->dataSize) {
-    MemoryBlock* prevBlock = block->prev;
-    prevBlock->dataSize += META_SIZE + block->dataSize;
+    MemoryBlock* leftBlock = block->prev;
+    leftBlock->dataSize += META_SIZE + block->dataSize;
     removeFromFreeList(&freeList, block);
   }
 }
 
 void coalesceWithRight(MemoryBlock* block) {
   if (block->next && (char*)block->next == (char*)block + META_SIZE + block->dataSize) {
-    MemoryBlock* nextBlock = block->next;
-    block->dataSize += META_SIZE + nextBlock->dataSize;
-    removeFromFreeList(&freeList, nextBlock);
+    MemoryBlock* rightBlock = block->next;
+    block->dataSize += META_SIZE + rightBlock->dataSize;
+    removeFromFreeList(&freeList, rightBlock);
   }
 }
 
 void freeMemoryBlock(MemoryBlock* block) {
-
   block->allocated = false;
   heap_info.totalFreed += block->dataSize + META_SIZE;
   if (isEmptyFreeList(&freeList) || block > freeList.tail) {
@@ -153,13 +152,11 @@ void freeMemoryBlock(MemoryBlock* block) {
 
 void* ff_malloc(size_t size) {
     if (size == 0) { return NULL; }
-  MemoryBlock* current = freeList.head;
-  while (current != NULL) {
-    if (current->allocated == false && current->dataSize >= size) {
-      return (char*)splitMemoryBlock(current, size) + META_SIZE;
+  MemoryBlock* curr = freeList.head;
+  curr = findFirstFit(curr, size);
+    if (curr != NULL) {
+        return splitMemoryBlock(curr, size) + 1;
     }
-    current = current->next;
-  }
   return allocateMemory(size);
 }
 
@@ -181,30 +178,34 @@ MemoryBlock * findFirstFit(MemoryBlock * curr, size_t size) {
     }
     return curr;
 }
+
+MemoryBlock * findBestFit(MemoryBlock * curr, size_t size){
+    MemoryBlock * bestFit = NULL;
+    while (curr != NULL) {
+        if (curr->dataSize == size) {
+            bestFit = curr;
+            break;
+        }
+        if (curr->dataSize > size) {
+            if (bestFit == NULL) {
+                bestFit = curr;
+            } else if (bestFit->dataSize > curr->dataSize) {
+                bestFit = curr;
+            }
+        }
+    curr = curr->next;
+  }
+  return bestFit;
+}
+
 void* bf_malloc(size_t size) {
     if (size == 0) { return NULL; }
-  MemoryBlock* current = freeList.head;
-  MemoryBlock* bestFit = NULL;
-  size_t minSize = SIZE_MAX;
-
-  while (current != NULL) {
-    if (current->allocated == false && current->dataSize >= size) {
-      if (current->dataSize == size) {
+    MemoryBlock* current = freeList.head;
+    MemoryBlock * bestFit = findBestFit(current, size);
+    if (bestFit != NULL) {
         return splitMemoryBlock(current, size) + 1;
-        //return (char*)splitMemoryBlock(current, size) + META_SIZE;
       }
-      if (current->dataSize < minSize) {
-        bestFit = current;
-        minSize = current->dataSize;
-      }
-    }
-    current = current->next;
-  }
-  if (bestFit == NULL) {
     return allocateMemory(size);
-  } else {
-    return (char*)splitMemoryBlock(bestFit, size) + META_SIZE;
-  }
 }
 
 void bf_free(void* ptr) {
