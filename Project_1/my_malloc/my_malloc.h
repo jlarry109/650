@@ -8,13 +8,22 @@
 #include <errno.h>
 #include <assert.h>
 
+/**
+ * Represents a block of memory in a memory allocation system.
+ *
+ * The MemoryBlock structure is used to represent a block of memory that can be
+ * allocated or deallocated. It contains information about the size of the data
+ * stored in the block, the allocation status, and pointers to the previous and
+ * next blocks in the linked list.
+ */
 struct MemoryBlock {
-  size_t dataSize;
-  bool allocated;
-  struct MemoryBlock* prev;
-  struct MemoryBlock* next;
+  size_t dataSize;             /**< Size of the data stored in the block. */
+  bool allocated;              /**< Indicates whether the block is currently allocated. */
+  struct MemoryBlock * prev;    /**< Pointer to the previous MemoryBlock in the linked list. */
+  struct MemoryBlock * next;    /**< Pointer to the next MemoryBlock in the linked list. */
 };
-typedef struct MemoryBlock MemoryBlock;
+typedef struct MemoryBlock MemoryBlock; /**< Typedef for the MemoryBlock structure. */
+
 
 /*
  * @brief Linked list structure to manage free blocks in the heap.
