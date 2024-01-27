@@ -14,7 +14,6 @@ struct MemoryBlock {
   struct MemoryBlock* prev;
   struct MemoryBlock* next;
 };
-
 typedef struct MemoryBlock MemoryBlock;
 
 /*
@@ -24,7 +23,6 @@ struct FreeList {
   MemoryBlock* head;
   MemoryBlock* tail;
 };
-
 typedef struct FreeList FreeList;
 
 #define META_SIZE sizeof(MemoryBlock)
@@ -62,8 +60,35 @@ void initializeMemoryBlock(MemoryBlock* block, size_t dataSize, bool occupied);
  */
 void appendToFreeList(FreeList* list, MemoryBlock* block);
 
+/*
+ * This function searches for the first MemoryBlock in the linked list starting
+ * from the given 'curr' block that has enough space to accommodate the specified 'size'.
+ * The search is performed sequentially, and the first fitting block is returned.
+ * If no suitable block is found, NULL is returned.
+ *
+ * @param curr  Pointer to the starting MemoryBlock in the linked list.
+ *              The search begins from this block.
+ * @param size  The size of the memory space required.
+ * @return      Pointer to the first MemoryBlock that fits the specified size,
+ *              or NULL if no suitable block is found.
+ */
 MemoryBlock * findFirstFit(MemoryBlock * curr, size_t size);
-void insertIntoFreeList(FreeList* list, MemoryBlock* block, MemoryBlock* curr);
+
+/*
+ * This function inserts the specified MemoryBlock into the given FreeList.
+ * If the FreeList is empty, the inserted block becomes both the head and tail
+ * of the list. If 'curr' is NULL, the block is inserted at the beginning of the list.
+ * If 'curr' is the tail of the list, the block is inserted at the end.
+ * Otherwise, the block is inserted between 'curr' and 'curr->next'.
+
+ * @param list  Pointer to the FreeList where the block should be inserted.
+ * @param block Pointer to the MemoryBlock to be inserted into the FreeList.
+ * @param curr  Pointer to the current MemoryBlock in the FreeList after which
+ *              the new block should be inserted. If NULL, the block is inserted
+ *              at the beginning.
+ */
+void insertIntoFreeList(FreeList *list, MemoryBlock *block, MemoryBlock * curr);
+
 
 /*
  * @brief Removes a block from the free list.
@@ -78,7 +103,6 @@ void removeFromFreeList(FreeList* list, MemoryBlock* toRemove);
  * @return Pointer to the allocated memory.
  */
 void* allocateMemory(size_t dataSize);
-
 /*
  * @brief Splits a block to allocate the required size.
  * @param block: Pointer to the block to be split.
@@ -98,6 +122,20 @@ void coalesceWithLeft(MemoryBlock* block);
  * @param leftBlock: Pointer to the block to the left.
  */
 void coalesceWithRight(MemoryBlock* block);
+
+
+/*
+ * Frees a MemoryBlock and updates the free list, performing coalescing if needed.
+
+ * This function marks the specified MemoryBlock as unallocated, updates the total
+ * freed memory in the heap_info structure, and adds the block to the free list. If
+ * the free list is empty or the block is at the end of the free list, the block is
+ * appended to the list. If the block is at the beginning, it is inserted at the start.
+ * If the block is in the middle, it is inserted after the suitable block in the list.
+ * Coalescing with neighboring free blocks is performed to merge contiguous free blocks.
+ *
+ * @param block Pointer to the MemoryBlock to be freed.
+ */
 void freeMemoryBlock(MemoryBlock* block);
 
 /*
