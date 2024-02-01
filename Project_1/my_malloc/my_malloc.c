@@ -92,7 +92,7 @@ void* allocateMemory(size_t dataSize) {
 }
 
 MemoryBlock* splitMemoryBlock(MemoryBlock* block, size_t dataSize) {
-  if (dataSize == block->dataSize) {
+  if (block->dataSize < META_SIZE + dataSize) {
       heap_info.totalFreed -= (META_SIZE + block->dataSize);
       removeFromFreeList(&freeList, block);
   } else {
