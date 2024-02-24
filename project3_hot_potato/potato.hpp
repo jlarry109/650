@@ -7,16 +7,21 @@
 #include <cstring>
 #include <vector>
 #include <iostream>
- 
+
+constexpr std::size_t MAX_NUM_HOPS = 512;
 class Potato {
 
     public:
         std::size_t ttl; //time to leave: remaining hops
-        std::vector<size_t> path;
+        int path [MAX_NUM_HOPS];
         std::size_t count;
 
-        Potato() : ttl(0), path(), count(0) {}
-        Potato(size_t num_hops) : ttl(num_hops), path(), count(0) {}
+        Potato() : ttl(0), count(0) {
+            memset(path, 0, sizeof(path));
+        }
+        Potato(size_t num_hops) : ttl(num_hops), path(), count(0) {
+            memset(path, 0, sizeof(path));
+        }
         ~Potato () {}
 
         void printPath() {
@@ -33,7 +38,7 @@ class Potato {
         }
 
         // Serialize the Potato object to a string
-    std::string serialize1() const {
+    /*std::string serialize1() const {
         std::ostringstream oss;
         oss << ttl << ",";
         for (std::size_t i = 0; i < count; i++) {
@@ -92,6 +97,6 @@ class Potato {
         // Copy path from the buffer
         path.resize(count);
         std::memcpy(path.data(), ptr, sizeof(std::size_t) * count);
-    }
+    }*/
     };
     #endif
