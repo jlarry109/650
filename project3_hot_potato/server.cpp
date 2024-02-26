@@ -67,9 +67,8 @@ int Server::acceptIncomingConnection(ConnectionInfo & info) {
 int Server::getPortNum() {
     struct sockaddr_in sin;
     socklen_t len = sizeof(sin);
-    if (getsockname(serverFd, (struct sockaddr *)&sin, &len) == -1)
-    {
-        std::cout << "getsockname failed!" << std::endl;
+    if (getsockname(serverFd, (struct sockaddr *)&sin, &len) == -1) {
+        std::cerr << "getsockname failed!" << std::endl;
         exit(EXIT_FAILURE);
     }
     return ntohs(sin.sin_port);

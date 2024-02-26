@@ -20,15 +20,13 @@ public:
     int playerNum;
     const char *machineName;
     const char *masterPort; // Master's port
-    //int playerPort;
     int masterFd; // File descriptor to ringmaster
     int leftFd;
     int rightFd;
 
 public:
     Player(const char *machineName, const char *portNum) : machineName(machineName), masterPort(portNum),
-                                                             leftFd(-1), rightFd(-1)
-    {
+                                                             leftFd(-1), rightFd(-1) {
         initializeAddrInfo(machineName, masterPort);
         // Connect to ringmaster
         buildMasterConnect();
@@ -36,8 +34,7 @@ public:
         recv(masterFd, &playerId, sizeof(playerId), 0);
         recv(masterFd, &playerNum, sizeof(playerNum), 0);
     }
-    virtual ~Player()
-    {
+    virtual ~Player() {
         // close(clientFd);
         close(masterFd);
         close(leftFd);
@@ -45,8 +42,7 @@ public:
     }
     
     /* Build socket to connect to ringmaster */
-    void buildMasterConnect()
-    {
+    void buildMasterConnect() {
         masterFd = socket(servInfo->ai_family, servInfo->ai_socktype, servInfo->ai_protocol);
         if (masterFd == -1)
         {
@@ -63,7 +59,7 @@ public:
     }
 
     /* Build socket to connect to previous (left) neighbor */
-    int buildNeighborConnect(const char *hostName, const char *portNum)
+    int buildNeighborConnect(const char * hostName, const char *portNum)
     {
         std::memset(&hostInfo, 0, sizeof(hostInfo)); // make sure the struct is empty
         hostInfo.ai_family = AF_UNSPEC;              // don't care IPv4 or IPv6
@@ -78,15 +74,13 @@ public:
         }
 
         int neighborFd = socket(servInfo->ai_family, servInfo->ai_socktype, servInfo->ai_protocol);
-        if (neighborFd == -1)
-        {
-            fprintf(stderr, "Failed to create socket!\n");
+        if (neighborFd == -1) {
+            std::cerr << "Failed to create socket!\n" << std::endl;
             exit(EXIT_FAILURE);
         }
 
         status = connect(neighborFd, servInfo->ai_addr, servInfo->ai_addrlen);
-        if (status == -1)
-        {
+        if (status == -1) {
             std::cerr << "Error: cannot connect to left neighbor" << std::endl;
             exit(EXIT_FAILURE);
         }
@@ -96,8 +90,7 @@ public:
     }
 
     /* Listen for potato and forward accordingly */
-    void listenAndForwardPotato()
-    {
+    void listenAndForwardPotato() {
         Potato potato(0);
         fd_set readFds;
         srand((unsigned int)time(NULL) + playerId);
@@ -105,29 +98,23 @@ public:
         int nfds = *(std::max_element(listenFds.begin(), listenFds.end()));
 
         // Catch the potato
-        while (true)
-        {
+        while (true) {
             FD_ZERO(&readFds);
-            for (int i = 0; i < listenFds.size(); i++)
-            {
+            for (int i = 0; i < listenFds.size(); i++) {
                 FD_SET(listenFds[i], &readFds);
             }
 
             int rv = select(nfds + 1, &readFds, NULL, NULL, NULL);
-            if (rv == -1)
-            {
-                perror("select"); // select() error
+            if (rv == -1) {
+                std::cerr << "select" << std::endl; // select() error
                 return;
             }
 
             int numBytes = 0;
-            for (int i = 0; i < listenFds.size(); i++)
-            {
-                if (FD_ISSET(listenFds[i], &readFds))
-                {
+            for (int i = 0; i < listenFds.size(); i++) {
+                if (FD_ISSET(listenFds[i], &readFds)) {
                     numBytes = recv(listenFds[i], &potato, sizeof(potato), MSG_WAITALL);
-                    if (numBytes == -1)
-                    {
+                    if (numBytes == -1) {
                         std::cerr << "Received a broken potato" << std::endl;
                         return;
                     }
@@ -136,31 +123,26 @@ public:
             }
 
             // If receive potato with 0 hop from master, shut down
-            if (potato.ttl == 0 || numBytes == 0)
-            {
+            if (potato.ttl == 0 || numBytes == 0) {
                 return;
             }
 
-            if (--potato.ttl == 0) // Send potato to master if the final hop
-            {
+            if (--potato.ttl == 0) { // Send potato to master if the final hop
                 potato.path[potato.count++] = playerId;
-                if (send(masterFd, &potato, sizeof(potato), 0) == -1)
-                {
+                if (send(masterFd, &potato, sizeof(potato), 0) == -1) {
                     std::cerr << "Send potato to master failed!" << std::endl;
                 }
                 std::cout << "I'm it" << std::endl;
                 return;
             }
-            else
-            {
+            else {
                 potato.path[potato.count++] = playerId;
                 int picked = rand() % 2;
                 std::cout << "Sending potato to ";
                 picked == 0 ? std::cout << (playerId + playerNum - 1) % playerNum : std::cout << (playerId + 1) % playerNum;
                 std::cout << std::endl;
 
-                if (send(listenFds[picked], &potato, sizeof(potato), 0) == -1)
-                {
+                if (send(listenFds[picked], &potato, sizeof(potato), 0) == -1) {
                     std::cerr << "Send potato to neighbor failed!" << std::endl;
                 }
             }
@@ -168,8 +150,7 @@ public:
     }
 
     /* Run the player logic */
-    void runPlayer()
-    {
+    void runPlayer() {
         // Player build as a server
         initializeAddrInfo(NULL, "");
         openSocket();
@@ -207,8 +188,7 @@ public:
 
 int main(int argc, char *argv[])
 {
-    if (argc != 3)
-    {
+    if (argc != 3){
         std::cerr << "The argument format should be: ./player <machine_name> <port_num>" << std::endl;
         return EXIT_FAILURE;
     }
